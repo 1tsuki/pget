@@ -10,14 +10,14 @@ import (
 )
 
 type Pget struct {
-	parallel int
 	timeout time.Duration
+	limit chan struct{}
 }
 
 func NewPget(parallel int, timeout time.Duration) *Pget {
 	return &Pget{
-		parallel,
 		timeout,
+		make(chan struct{}, parallel),
 	}
 }
 
@@ -27,19 +27,17 @@ func (p *Pget) WithCallback(urls []*url.URL, callback func(url *url.URL, reader 
 	ctx, cancel := context.WithTimeout(ctx, p.timeout)
 	defer cancel()
 
-	limit := make(chan struct{}, p.parallel)
 	for _, url := range urls {
-		download(eg, ctx, limit, url, callback)
+		p.download(ctx, eg, url, callback)
 	}
-	// wait for all Goroutines
 	return eg.Wait()
 }
 
-func download(eg *errgroup.Group, ctx context.Context, limit chan struct{}, url *url.URL, callback func(*url.URL, io.Reader) error) {
+func (p *Pget) download(ctx context.Context, eg *errgroup.Group, url *url.URL, callback func(*url.URL, io.Reader) error) {
 	eg.Go(func() error {
 		// limit parallel executions by using channel
-		limit <- struct{}{}
-		defer func() { <-limit }()
+		p.limit <- struct{}{}
+		defer func() { <-p.limit }()
 
 		select {
 		case <-ctx.Done():
