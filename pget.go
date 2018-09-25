@@ -3,7 +3,6 @@ package pget
 import (
 	"context"
 	"golang.org/x/sync/errgroup"
-	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -21,7 +20,7 @@ func NewPget(parallel int, timeout time.Duration) *Pget {
 	}
 }
 
-func (p *Pget) WithCallback(urls []*url.URL, callback func(url *url.URL, reader io.Reader) error) error {
+func (p *Pget) WithCallback(urls []*url.URL, callback func(url *url.URL, resp *http.Response) error) error {
 	// context with timeout
 	eg, ctx := errgroup.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, p.timeout)
@@ -33,7 +32,7 @@ func (p *Pget) WithCallback(urls []*url.URL, callback func(url *url.URL, reader 
 	return eg.Wait()
 }
 
-func (p *Pget) download(ctx context.Context, eg *errgroup.Group, url *url.URL, callback func(*url.URL, io.Reader) error) {
+func (p *Pget) download(ctx context.Context, eg *errgroup.Group, url *url.URL, callback func(*url.URL, *http.Response) error) {
 	eg.Go(func() error {
 		// limit parallel executions by using channel
 		p.limit <- struct{}{}
@@ -52,7 +51,7 @@ func (p *Pget) download(ctx context.Context, eg *errgroup.Group, url *url.URL, c
 			defer resp.Body.Close()
 
 			// execute callback
-			return callback(url, resp.Body)
+			return callback(url, resp)
 		}
 	})
 }
