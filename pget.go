@@ -14,7 +14,14 @@ type Pget struct {
 	timeout time.Duration
 }
 
-func (p *Pget) WithCallback(urls []url.URL, callback func(reader io.Reader) error) error {
+func NewPget(parallel int, timeout time.Duration) *Pget {
+	return &Pget{
+		parallel,
+		timeout,
+	}
+}
+
+func (p *Pget) WithCallback(urls []*url.URL, callback func(reader io.Reader) error) error {
 	// context with timeout
 	eg, ctx := errgroup.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, p.timeout)
