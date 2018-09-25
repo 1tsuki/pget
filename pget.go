@@ -29,28 +29,32 @@ func (p *Pget) WithCallback(urls []*url.URL, callback func(url *url.URL, reader 
 
 	limit := make(chan struct{}, p.parallel)
 	for _, url := range urls {
-		eg.Go(func() error {
-			// limit parallel executions by using channel
-			limit <- struct{}{}
-			defer func() { <-limit }()
-
-			select {
-			case <-ctx.Done():
-				// abort on context cancel
-				return nil
-			default:
-				// get contents
-				resp, err := http.Get(url.String())
-				if err != nil {
-					return err
-				}
-				defer resp.Body.Close()
-
-				// execute callback
-				return callback(url, resp.Body)
-			}
-		})
+		download(eg, ctx, limit, url, callback)
 	}
 	// wait for all Goroutines
 	return eg.Wait()
+}
+
+func download(eg *errgroup.Group, ctx context.Context, limit chan struct{}, url *url.URL, callback func(*url.URL, io.Reader) error) {
+	eg.Go(func() error {
+		// limit parallel executions by using channel
+		limit <- struct{}{}
+		defer func() { <-limit }()
+
+		select {
+		case <-ctx.Done():
+			// abort on context cancel
+			return nil
+		default:
+			// get contents
+			resp, err := http.Get(url.String())
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+
+			// execute callback
+			return callback(url, resp.Body)
+		}
+	})
 }
