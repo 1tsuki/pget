@@ -21,7 +21,7 @@ func NewPget(parallel int, timeout time.Duration) *Pget {
 	}
 }
 
-func (p *Pget) WithCallback(urls []*url.URL, callback func(reader io.Reader) error) error {
+func (p *Pget) WithCallback(urls []*url.URL, callback func(url *url.URL, reader io.Reader) error) error {
 	// context with timeout
 	eg, ctx := errgroup.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, p.timeout)
@@ -47,7 +47,7 @@ func (p *Pget) WithCallback(urls []*url.URL, callback func(reader io.Reader) err
 				defer resp.Body.Close()
 
 				// execute callback
-				return callback(resp.Body)
+				return callback(url, resp.Body)
 			}
 		})
 	}
